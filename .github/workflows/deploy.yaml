@@ -1,34 +1,48 @@
-name: Deploy to Kubernetes
+name: Deploy App
 
 on:
   push:
-    tags: [ 'v*' ]
-
-env:
-  REGISTRY: cr.yandex/${{ secrets.YC_REGISTRY_ID }}/${{ github.event.repository.name }}
-  IMAGE_NAME: ${{ github.event.repository.name }}
-  TAG: ${{ github.ref_name }}  # v1.0.0
+    tags:
+      - 'v*'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v4
-        with:
-          version: 'v1.31.0'
+      - name: Set up Docker and extract version
+        id: setup
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "IMAGE_TAG=cr.yandex/${{ secrets.YC_REGISTRY_ID }}/test-app:${VERSION}" >> $GITHUB_ENV
+          echo "Using version: ${VERSION}"
+          echo "Full image tag: cr.yandex/${{ secrets.YC_REGISTRY_ID }}/test-app:${VERSION}"
+
+      - name: Login to Yandex Container Registry
+        run: |
+          echo '${{ secrets.YC_SA_KEY }}' > sa_key.json
+          cat sa_key.json | docker login \
+            --username json_key \
+            --password-stdin \
+            cr.yandex
+          rm -f sa_key.json
+
+      - name: Build and push Docker image
+        run: |
+          echo "Building image with tag: ${IMAGE_TAG}"
+          docker build -t ${IMAGE_TAG} .
+          docker push ${IMAGE_TAG}
 
       - name: Configure kubectl
         run: |
           mkdir -p ~/.kube
-          echo '${{ secrets.KUBE_CONFIG }}' > ~/.kube/config
-          kubectl config view  # для дебага
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
 
-      - name: Deploy to k8s
+      - name: Deploy to Cluster
         run: |
+          echo "Deploying version: ${IMAGE_TAG}"
           kubectl set image deployment/test-nginx \
-            test-nginx=$REGISTRY/$IMAGE_NAME:$TAG \
+            test-nginx=${IMAGE_TAG} \
             -n lepishin-nginx

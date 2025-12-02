@@ -57,5 +57,5 @@ playbook/test.yml
 # SSH keys
 *.key
 *.pub
-terraform-key.json
+sa_key.json
 
