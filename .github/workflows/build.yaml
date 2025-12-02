@@ -28,6 +28,6 @@ jobs:
 
       - name: Build and push
         run: |
-          IMAGE=cr.yandex/${{ secrets.YC_REGISTRY_ID }}/test-app
+          IMAGE=cr.yandex/${{ secrets.YC_REGISTRY_ID }}/test-app:latest
           docker build -t $IMAGE:latest .
           docker push $IMAGE:latest
