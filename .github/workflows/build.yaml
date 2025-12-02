@@ -19,19 +19,16 @@ jobs:
           curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
           echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH
 
-      - name: Authenticate YC CLI
+      - name: Login to Yandex Container Registry
         run: |
-          yc config set service-account-key '${{ secrets.YC_SA_KEY }}'
+          echo '${{ secrets.YC_SA_KEY }}' > sa_key.json
+          cat sa_key.json | docker login \
+            --username json_key \
+            --password-stdin \
+            cr.yandex
+          rm -f sa_key.json
 
-      - name: Configure Docker for YCR
-        run: yc container registry configure-docker
-      
-      - name: Validate secrets
+      - name: Build and push latest
         run: |
-          [ -n "${{ secrets.YC_REGISTRY_ID }}" ] || { echo "YC_REGISTRY_ID is empty"; exit 1; }
-
-      - name: Build and push
-        run: |
-          IMAGE=cr.yandex/${{ secrets.YC_REGISTRY_ID }}/test-app
-          docker build -t $IMAGE:latest .
-          docker push $IMAGE:latest
+          docker build --no-cache -t cr.yandex/${{ secrets.YC_REGISTRY_ID }}/test-app:latest .
+          docker push cr.yandex/${{ secrets.YC_REGISTRY_ID }}/test-app:latest
