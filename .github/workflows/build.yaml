@@ -1,0 +1,42 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+
+env:
+  REGISTRY: cr.yandex/${{ secrets.YC_REGISTRY_ID }}/${{ github.event.repository.name }}
+  IMAGE_NAME: ${{ github.event.repository.name }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up YC CLI
+        uses: yandex-cloud/setup-yc@v1
+        with:
+          yc-sa-json: ${{ secrets.YC_SA_KEY }}
+
+      - name: Configure Docker for YCR
+        run: yc container registry configure-docker
+
+      - name: Build Docker image
+        run: |
+          IMAGE_TAG=${GITHUB_REF##*/}
+          if [[ "$IMAGE_TAG" == "main" ]]; then
+            IMAGE_TAG="sha-$(git rev-parse --short HEAD)"
+          fi
+          echo "Building $REGISTRY/$IMAGE_NAME:$IMAGE_TAG"
+          docker build -t "$REGISTRY/$IMAGE_NAME:$IMAGE_TAG" .
+
+      - name: Push to Yandex Container Registry
+        run: |
+          IMAGE_TAG=${GITHUB_REF##*/}
+          if [[ "$IMAGE_TAG" == "main" ]]; then
+            IMAGE_TAG="sha-$(git rev-parse --short HEAD)"
+          fi
+          docker push "$REGISTRY/$IMAGE_NAME:$IMAGE_TAG"

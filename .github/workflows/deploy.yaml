@@ -1,0 +1,34 @@
+name: Deploy to Kubernetes
+
+on:
+  push:
+    tags: [ 'v*' ]
+
+env:
+  REGISTRY: cr.yandex/${{ secrets.YC_REGISTRY_ID }}/${{ github.event.repository.name }}
+  IMAGE_NAME: ${{ github.event.repository.name }}
+  TAG: ${{ github.ref_name }}  # v1.0.0
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.31.0'
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p ~/.kube
+          echo '${{ secrets.KUBE_CONFIG }}' > ~/.kube/config
+          kubectl config view  # для дебага
+
+      - name: Deploy to k8s
+        run: |
+          kubectl set image deployment/test-nginx \
+            test-nginx=$REGISTRY/$IMAGE_NAME:$TAG \
+            -n lepishin-nginx
