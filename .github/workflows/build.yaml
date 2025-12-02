@@ -25,9 +25,13 @@ jobs:
 
       - name: Configure Docker for YCR
         run: yc container registry configure-docker
+      
+      - name: Validate secrets
+        run: |
+          [ -n "${{ secrets.YC_REGISTRY_ID }}" ] || { echo "YC_REGISTRY_ID is empty"; exit 1; }
 
       - name: Build and push
         run: |
-          IMAGE=cr.yandex/${{ secrets.YC_REGISTRY_ID }}/test-app:latest
+          IMAGE=cr.yandex/${{ secrets.YC_REGISTRY_ID }}/test-app
           docker build -t $IMAGE:latest .
           docker push $IMAGE:latest
